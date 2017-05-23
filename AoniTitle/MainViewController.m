@@ -19,7 +19,6 @@
 @interface MainViewController ()<UIScrollViewDelegate>
 
 @property (nonatomic, strong) UIScrollView *topScrollView;
-@property (nonatomic, strong) NSMutableArray  *mainList;
 @property (nonatomic, strong) NSMutableArray  *allButtons;
 
 @property (nonatomic, strong) UIView  *slideView;
@@ -46,7 +45,6 @@
 - (void)addTopScrollView{
     
     _topScrollView = [[UIScrollView alloc] init];
-//    _topScrollView.backgroundColor = [UIColor lightGrayColor];
     _topScrollView.showsVerticalScrollIndicator = NO;
     _topScrollView.showsHorizontalScrollIndicator = NO;
     _topScrollView.frame = CGRectMake((kScreenWidth-200)/2.0, 0, 200, 44);
@@ -198,12 +196,6 @@
     return _topList;
 }
 
-- (NSMutableArray *)mainList{
-    if (!_mainList) {
-        _mainList = [NSMutableArray arrayWithObjects:@"图片",@"视频",@"紧急", nil];
-    }
-    return _mainList;
-}
 #pragma mark - 懒加载可变数组
 -(NSMutableArray *)allButtons{
     if (_allButtons == nil) {
