@@ -13,11 +13,17 @@
 #define kScreenWidth   [[UIScreen mainScreen] bounds].size.width
 #define HYColor(a,b,c) [UIColor colorWithRed:a green:b blue:c alpha:1]
 
+//#define buttonW kScreenWidth*2/9.0-20
+#define buttonW 200.0/3.0
+
 @interface MainViewController ()<UIScrollViewDelegate>
 
 @property (nonatomic, strong) UIScrollView *topScrollView;
 @property (nonatomic, strong) NSMutableArray  *mainList;
 @property (nonatomic, strong) NSMutableArray  *allButtons;
+
+@property (nonatomic, strong) UIView  *slideView;
+
 
 @end
 
@@ -43,13 +49,17 @@
 //    _topScrollView.backgroundColor = [UIColor lightGrayColor];
     _topScrollView.showsVerticalScrollIndicator = NO;
     _topScrollView.showsHorizontalScrollIndicator = NO;
-    _topScrollView.frame = CGRectMake(0, 0, 200, 40);
+    _topScrollView.frame = CGRectMake((kScreenWidth-200)/2.0, 0, 200, 44);
     
-    _topScrollView.contentSize = CGSizeMake(kScreenWidth, 40);
+    _topScrollView.contentSize = CGSizeMake(kScreenWidth, 44);
     [_topScrollView setContentOffset:CGPointMake(0, 0) animated:NO];
     self.navigationItem.titleView = _topScrollView;
-//    [self.view addSubview:_topScrollView];
     [self addButton];
+    
+    self.slideView = [[UIView alloc] init];
+    self.slideView.frame = CGRectMake( 0, self.topScrollView.bounds.size.height-3, buttonW, 2);
+    [self.topScrollView addSubview:self.slideView];
+    self.slideView.backgroundColor = [UIColor whiteColor];
 }
 
 #pragma mark - content scrollView
@@ -66,7 +76,6 @@
         _mainScrollView.pagingEnabled = YES;
         _mainScrollView.bounces = NO;
         [self.view addSubview:_mainScrollView];
-//        [self addController];
     }
     //设置标题初始状态
     UIButton* firstBtn = self.allButtons[0];
@@ -81,13 +90,14 @@
 {
     for (int i = 0; i < 3; i++) {
         CGFloat labelW = 200/3.0;
-        CGFloat labelH = 40;
+        CGFloat labelH = 44;
         CGFloat labelY = 0;
         CGFloat labelX = i * labelW;
         UIButton *button = [[UIButton alloc]init];
         [button setTitle:self.topList[i] forState:UIControlStateNormal];
         button.titleLabel.textAlignment = NSTextAlignmentCenter;
         [button setTitleColor:[UIColor blackColor] forState:UIControlStateNormal];
+//        button.backgroundColor = [UIColor redColor];
         button.frame = CGRectMake(labelX, labelY, labelW, labelH);
         [_topScrollView addSubview:button];
         [self.allButtons addObject:button];
@@ -109,9 +119,11 @@
 
 #pragma mark - currentIndex
 - (void)scrollViewDidEndDecelerating:(UIScrollView *)scrollView{
-    NSInteger i = scrollView.contentOffset.x / kScreenWidth;
-    //结束一次页面滚动，就需要重新设置title滚动区的按钮的位置
-    [self titleScrollViewChangeWithBtnTag:i];
+    if (scrollView == _mainScrollView) {
+        NSInteger i = scrollView.contentOffset.x / kScreenWidth;
+        //结束一次页面滚动，就需要重新设置title滚动区的按钮的位置
+        [self titleScrollViewChangeWithBtnTag:i];
+    }
 }
 
 #pragma mark content滚动区
@@ -134,42 +146,48 @@
     CGFloat maxOffset = self.topScrollView.contentSize.width - kScreenWidth;
     //保证标题的最后一个在最右端
     if (offset > maxOffset) {
-//        NSLog(@"%.2f--%.2f",offset,maxOffset);
         offset = maxOffset;
     }
+    
+    [UIView animateWithDuration:0.25 animations:^{
+        self.slideView.frame = CGRectMake( tag * buttonW, self.topScrollView.bounds.size.height-3, buttonW, 2);
+    }];
     //动态性的设置标题滚动区的偏移量
     [self.topScrollView setContentOffset:CGPointMake(offset, 0) animated:YES];
 }
 
 #pragma mark 只要在滚动就会不停的调用该方法,mainScrollView
 -(void)scrollViewDidScroll:(UIScrollView *)scrollView{
-    //先拿到相邻的角标
-    NSInteger leftIndex = scrollView.contentOffset.x / kScreenWidth;
-    leftIndex = (leftIndex >= self.allButtons.count - 2)?(self.allButtons.count - 2):leftIndex;
-    NSInteger rightIndex = leftIndex + 1;
-    //根据角标拿到对应的title
-    UIButton* leftBtn = self.allButtons[leftIndex];
-    UIButton* rightBtn = self.allButtons[rightIndex];
+    if (scrollView == _mainScrollView) {
+        //先拿到相邻的角标
+        NSInteger leftIndex = scrollView.contentOffset.x / kScreenWidth;
+        leftIndex = (leftIndex >= self.allButtons.count - 2)?(self.allButtons.count - 2):leftIndex;
+        NSInteger rightIndex = leftIndex + 1;
+        //根据角标拿到对应的title
+        UIButton* leftBtn = self.allButtons[leftIndex];
+        UIButton* rightBtn = self.allButtons[rightIndex];
+        
+        //然后拿到相邻区域的leftWidth和rightWidth
+        CGFloat x = scrollView.contentOffset.x;
+        //leftWidth,rightWidth：可以看做滚动前屏幕右侧有一个点，leftWidth为这个点到左侧的距离
+        //rightWidth为这个点到右侧的距离，随着向右滚动，leftWidth越来越小，rightWidth越来越大
+        CGFloat leftWdth = rightIndex * kScreenWidth - scrollView.contentOffset.x;
+        CGFloat rightWidth = kScreenWidth - leftWdth;
+        
+        //然后获取leftScale和rightScale
+        CGFloat leftScale = leftWdth / kScreenWidth;
+        CGFloat rightScale = rightWidth / kScreenWidth;
+        
+        NSLog(@"%.2f--%.2f--%.2f",leftWdth,rightWidth,x);
+        // 1、先处理title字体的随着滚动内容区域的形变
+        leftBtn.transform = CGAffineTransformMakeScale(leftScale*0.2+1, leftScale*0.2+1);
+        rightBtn.transform = CGAffineTransformMakeScale(rightScale*0.2+1, rightScale*0.2+1);
+        
+        // 2、再处理title字体的颜色值
+        [leftBtn setTitleColor:HYColor(leftScale, 0, 0) forState:UIControlStateNormal];
+        [rightBtn setTitleColor:HYColor(rightScale, 0, 0) forState:UIControlStateNormal];
+    }
     
-    //然后拿到相邻区域的leftWidth和rightWidth
-    CGFloat x = scrollView.contentOffset.x;
-    //leftWidth,rightWidth：可以看做滚动前屏幕右侧有一个点，leftWidth为这个点到左侧的距离
-    //rightWidth为这个点到右侧的距离，随着向右滚动，leftWidth越来越小，rightWidth越来越大
-    CGFloat leftWdth = rightIndex * kScreenWidth - scrollView.contentOffset.x;
-    CGFloat rightWidth = kScreenWidth - leftWdth;
-    
-    //然后获取leftScale和rightScale
-    CGFloat leftScale = leftWdth / kScreenWidth;
-    CGFloat rightScale = rightWidth / kScreenWidth;
-    
-    NSLog(@"%.2f--%.2f--%.2f",leftWdth,rightWidth,x);
-    // 1、先处理title字体的随着滚动内容区域的形变
-    leftBtn.transform = CGAffineTransformMakeScale(leftScale*0.2+1, leftScale*0.2+1);
-    rightBtn.transform = CGAffineTransformMakeScale(rightScale*0.2+1, rightScale*0.2+1);
-    
-    // 2、再处理title字体的颜色值
-    [leftBtn setTitleColor:HYColor(leftScale, 0, 0) forState:UIControlStateNormal];
-    [rightBtn setTitleColor:HYColor(rightScale, 0, 0) forState:UIControlStateNormal];
 }
 
 /*--------------------------  懒加载  --------------------------------*/
